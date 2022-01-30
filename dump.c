@@ -14,15 +14,16 @@
 #include <linux/sched.h>
 #include <linux/string.h>
 
-static ulong data_addr = 0;
-static int data_len = 0;
-static int target_pid = 0;
+static ulong start = 0;
+static int pid = 0;
+static ulong end = 0;
 
-module_param(data_addr, ulong, S_IRUGO);
-module_param(data_len, int, S_IRUGO);
-module_param(target_pid, int, S_IRUGO);
+module_param(start, ulong, S_IRUGO);
+module_param(end, ulong, S_IRUGO);
+module_param(pid, int, S_IRUGO);
 
 static int __init main_init(void) {
+  ulong data_len = end - start;
   struct task_struct *task;
   char *vaddr;
   int retval = 0;
@@ -37,16 +38,15 @@ static int __init main_init(void) {
   loff_t pos;
   struct page *page;
 
-  if (data_addr == 0 || data_len == 0 || target_pid == 0) {
-    printk("insmod main <data_addr=?> <data len=?> <target_pid=?>\n");
+  if (start == 0 || pid == 0) {
+    printk("insmod main <start=?> <end=?> <pid=?>\n");
     return 0;
   }
 
-  printk("data_addr:0x%lX, data_len:%d, target_pid:%d\n", data_addr, data_len,
-         target_pid);
+  printk("start:0x%lX, data_len:%ld, pid:%d\n", start, end, pid);
 
   for_each_process(task) {
-    if (task->pid == target_pid) {
+    if (task->pid == pid) {
       printk("find task:%s\n", task->comm);
       retval = 1;
       break;
@@ -58,25 +58,25 @@ static int __init main_init(void) {
     return -1;
   }
 
-  pgd = pgd_offset(task->mm, data_addr);
+  pgd = pgd_offset(task->mm, start);
   if (pgd_none(*pgd)) {
     printk("not mapped in pgd\n");
     return -1;
   }
 
-  pud = pud_offset((pgd_t *)pgd, data_addr);
+  pud = pud_offset((pgd_t *)pgd, start);
   if (pud_none(*pud)) {
     printk("not mapped in pud\n");
     return -1;
   }
 
-  pmd = pmd_offset(pud, data_addr);
+  pmd = pmd_offset(pud, start);
   if (pmd_none(*pmd)) {
     printk("not mapped in pmd\n");
     return -1;
   }
 
-  pte = pte_offset_kernel(pmd, data_addr);
+  pte = pte_offset_kernel(pmd, start);
   if (pte_none(*pte)) {
     printk("not mapped in pte\n");
     return -1;

@@ -1,2 +1,2 @@
 # mem-dump
-mem dump (from kernel)
+内核级 dump工具
